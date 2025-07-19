@@ -1,0 +1,1010 @@
+    <!DOCTYPE html>
+    <html lang="th">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>หมากฮอส (Checkers) - Enhanced</title>
+        <!-- Tailwind CSS CDN -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        <!-- Inter font -->
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap">
+        <style>
+            body {
+                font-family: 'Inter', sans-serif;
+            }
+            /* Keyframes for last move highlight */
+            @keyframes lastMoveHighlight {
+                0% { background-color: rgba(255, 255, 0, 0.5); } /* Yellow */
+                100% { background-color: transparent; }
+            }
+            .last-move-highlight {
+                animation: lastMoveHighlight 2s forwards;
+            }
+
+            /* --- Fixed Size for Checkers Board Squares --- */
+            /* Define a custom size for squares */
+            .checkers-square-size {
+                width: 60px;
+                height: 60px;
+            }
+
+            /* Define the grid for the board using fixed sizes */
+            #checkers-board {
+                grid-template-columns: repeat(8, 60px); /* 8 columns, each 60px wide */
+                grid-template-rows: repeat(8, 60px);    /* 8 rows, each 60px high */
+                /* Remove min/max width/height as squares now dictate board size */
+                width: auto !important; /* Override inline style from JS */
+                height: auto !important; /* Override inline style from JS */
+                max-width: none !important; /* Override inline style from JS */
+                max-height: none !important; /* Override inline style from JS */
+            }
+
+            /* Responsive adjustments for smaller screens */
+            @media (max-width: 600px) {
+                .checkers-square-size {
+                    width: 45px;
+                    height: 45px;
+                }
+                #checkers-board {
+                    grid-template-columns: repeat(8, 45px);
+                    grid-template-rows: repeat(8, 45px);
+                }
+                /* Adjust piece size for smaller squares */
+                .piece-content {
+                    font-size: 24px; /* Smaller font for pieces */
+                }
+            }
+
+            @media (max-width: 400px) {
+                .checkers-square-size {
+                    width: 38px;
+                    height: 38px;
+                }
+                #checkers-board {
+                    grid-template-columns: repeat(8, 38px);
+                    grid-template-rows: repeat(8, 38px);
+                }
+                /* Adjust piece size for even smaller squares */
+                .piece-content {
+                    font-size: 20px; /* Even smaller font for pieces */
+                }
+            }
+        </style>
+    </head>
+    <body class="min-h-screen bg-gradient-to-br from-purple-800 to-indigo-900 text-white p-4 flex flex-col items-center justify-center">
+
+        <h1 class="text-4xl font-bold mb-6 text-yellow-300 drop-shadow-lg">
+            หมากฮอส (Checkers)
+        </h1>
+
+        <div id="game-mode-selection" class="mb-6 p-4 bg-gray-800 rounded-lg shadow-xl w-full max-w-md text-center">
+            <h2 class="text-xl font-semibold mb-4">เลือกโหมดการเล่น</h2>
+            <div class="flex justify-around space-x-4">
+                <button id="mode-vs-ai-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">
+                    เล่นกับ AI
+                </button>
+                <button id="mode-2-player-btn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">
+                    ผู้เล่น 2 คน
+                </button>
+            </div>
+        </div>
+
+        <div id="ai-difficulty-selection" class="mb-6 p-4 bg-gray-800 rounded-lg shadow-xl w-full max-w-md text-center hidden">
+            <h2 class="text-xl font-semibold mb-4">เลือกระดับความยาก AI</h2>
+            <div class="flex justify-around space-x-2">
+                <button data-difficulty="2" class="difficulty-btn flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75">
+                    ง่าย
+                </button>
+                <button data-difficulty="4" class="difficulty-btn flex-1 bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75">
+                    ปานกลาง
+                </button>
+                <button data-difficulty="6" class="difficulty-btn flex-1 bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-75">
+                    ยาก
+                </button>
+            </div>
+        </div>
+
+        <div id="game-area" class="flex flex-col items-center hidden">
+            <div id="game-message" class="mb-4 text-lg font-semibold text-center"></div>
+            <div id="player-info" class="mb-4 text-md">
+                <span id="current-player-display"></span>
+                <span id="player-color-display" class="ml-2"></span>
+            </div>
+
+            <div id="checkers-board"
+                class="grid gap-0.5 p-1 rounded-lg shadow-2xl bg-gray-900">
+                <!-- Board squares will be rendered here by JavaScript -->
+            </div>
+
+            <div class="mt-8 flex space-x-4">
+                <button id="reset-game-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75">
+                    เริ่มเกมใหม่
+                </button>
+                <button id="back-to-mode-selection-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75">
+                    กลับไปเลือกโหมด
+                </button>
+            </div>
+            <!-- Display AI Engine Name -->
+            <div class="mt-4 text-sm text-gray-400">
+                AI Engine: Pad Thai
+            </div>
+        </div>
+
+        <script>
+            // --- Game State Variables ---
+            const BOARD_SIZE = 8;
+            const EMPTY = 0;
+            const WHITE_PIECE = 1;
+            const BLACK_PIECE = 2;
+            const WHITE_KING = 3;
+            const BLACK_KING = 4;
+
+            const PLAYER_WHITE = WHITE_PIECE;
+            const PLAYER_BLACK = BLACK_PIECE;
+
+            const PIECE_COLORS = {
+                [WHITE_PIECE]: 'bg-white',
+                [BLACK_PIECE]: 'bg-gray-800',
+                [WHITE_KING]: 'bg-white border-2 border-yellow-500',
+                [BLACK_KING]: 'bg-gray-800 border-2 border-yellow-500',
+            };
+
+            const PIECE_LABELS = {
+                [WHITE_PIECE]: '⚪',
+                [BLACK_PIECE]: '⚫',
+                [WHITE_KING]: '👑',
+                [BLACK_KING]: '♚',
+            };
+
+            let board = [];
+            let currentPlayer = PLAYER_WHITE;
+            let selectedPiece = null; // { row, col }
+            let possibleMoves = [];
+            let message = '';
+            let gameOver = false;
+            let forcedCaptures = []; // Stores the full forced capture sequences
+            let lastMove = null; // { from: {row, col}, to: {row, col} } for highlighting
+            let boardHistory = []; // For draw by repetition
+            let gameMode = null; // 'vs_ai' or '2_player'
+            let aiDepth = 4; // Default AI difficulty (Medium)
+
+            // --- DOM Elements ---
+            const gameModeSelectionDiv = document.getElementById('game-mode-selection');
+            const modeVsAiBtn = document.getElementById('mode-vs-ai-btn');
+            const mode2PlayerBtn = document.getElementById('mode-2-player-btn');
+            const aiDifficultySelectionDiv = document.getElementById('ai-difficulty-selection');
+            const difficultyBtns = document.querySelectorAll('.difficulty-btn');
+            const gameAreaDiv = document.getElementById('game-area');
+            const gameMessage = document.getElementById('game-message');
+            const currentPlayerDisplay = document.getElementById('current-player-display');
+            const playerColorDisplay = document.getElementById('player-color-display');
+            const checkersBoardDiv = document.getElementById('checkers-board');
+            const resetGameBtn = document.getElementById('reset-game-btn');
+            const backToModeSelectionBtn = document.getElementById('back-to-mode-selection-btn');
+
+            // --- UI Update Functions ---
+            const updateUI = () => {
+                gameMessage.textContent = message;
+                currentPlayerDisplay.textContent = `ตาเดิน: ${currentPlayer === PLAYER_WHITE ? 'ขาว' : 'ดำ'}`;
+                playerColorDisplay.textContent = gameMode === 'vs_ai' ? ' (คุณคือขาว ⚪)' : ''; // Only show "Your Color" in vs_ai mode
+                renderBoard();
+
+                if (gameMode) {
+                    gameModeSelectionDiv.classList.add('hidden');
+                    gameAreaDiv.classList.remove('hidden');
+                    if (gameMode === 'vs_ai') {
+                        aiDifficultySelectionDiv.classList.remove('hidden');
+                    } else {
+                        aiDifficultySelectionDiv.classList.add('hidden');
+                    }
+                } else {
+                    gameModeSelectionDiv.classList.remove('hidden');
+                    gameAreaDiv.classList.add('hidden');
+                    aiDifficultySelectionDiv.classList.add('hidden');
+                }
+            };
+
+            const renderBoard = () => {
+                checkersBoardDiv.innerHTML = ''; // Clear existing board
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        const piece = board[r][c];
+                        const isDarkSquare = (r + c) % 2 !== 0;
+                        const isSelected = selectedPiece && selectedPiece.row === r && selectedPiece.col === c;
+                        const isPossibleMove = possibleMoves.some(
+                            (move) => move.row === r && move.col === c
+                        );
+                        const isLastMoveFrom = lastMove && lastMove.from && lastMove.from.row === r && lastMove.from.col === c;
+                        const isLastMoveTo = lastMove && lastMove.to && lastMove.to.row === r && lastMove.to.col === c;
+
+
+                        let bgColor = isDarkSquare ? 'bg-gray-700' : 'bg-gray-300';
+                        if (isSelected) {
+                            bgColor = 'bg-blue-500';
+                        } else if (isPossibleMove) {
+                            bgColor = 'bg-green-500';
+                        } else if (isLastMoveFrom || isLastMoveTo) {
+                             // Apply a subtle highlight for the last move
+                            bgColor = isDarkSquare ? 'bg-yellow-600' : 'bg-yellow-400';
+                        }
+
+
+                        const squareDiv = document.createElement('div');
+                        // Apply the fixed size class here
+                        squareDiv.className = `relative flex items-center justify-center rounded-md cursor-pointer transition-colors duration-200 ${bgColor} checkers-square-size`;
+                        squareDiv.dataset.row = r;
+                        squareDiv.dataset.col = c;
+                        squareDiv.addEventListener('click', () => handlePieceClick(r, c));
+
+                        if (piece !== EMPTY) {
+                            const pieceDiv = document.createElement('div');
+                            // Adjusted piece size to be relative to the square, creating more visual space
+                            pieceDiv.className = `w-3/4 h-3/4 rounded-full flex items-center justify-center shadow-lg transform transition-transform duration-100 ${PIECE_COLORS[piece]}`;
+                            const pieceSpan = document.createElement('span');
+                            pieceSpan.className = "piece-content"; /* Use a specific class for piece content */
+                            pieceSpan.textContent = PIECE_LABELS[piece];
+                            pieceDiv.appendChild(pieceSpan);
+                            squareDiv.appendChild(pieceDiv);
+                        }
+                        checkersBoardDiv.appendChild(squareDiv);
+                    }
+                }
+            };
+
+            // --- Game Logic ---
+
+            const initializeBoard = () => {
+                const newBoard = Array(BOARD_SIZE).fill(0).map(() => Array(BOARD_SIZE).fill(EMPTY));
+
+                // Place black pieces (top)
+                for (let r = 0; r < 3; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        if ((r + c) % 2 !== 0) { // Place on dark squares
+                            newBoard[r][c] = BLACK_PIECE;
+                        }
+                    }
+                }
+
+                // Place white pieces (bottom)
+                for (let r = BOARD_SIZE - 3; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        if ((r + c) % 2 !== 0) { // Place on dark squares
+                            newBoard[r][c] = WHITE_PIECE;
+                        }
+                    }
+                }
+                return newBoard;
+            };
+
+            const isPlayerPiece = (piece, player) => {
+                if (player === PLAYER_WHITE) {
+                    return piece === WHITE_PIECE || piece === WHITE_KING;
+                } else {
+                    return piece === BLACK_PIECE || piece === BLACK_KING;
+                }
+            };
+
+            const isKing = (piece) => piece === WHITE_KING || piece === BLACK_KING;
+
+            // Helper function to validate move object structure
+            const isValidMoveObject = (move) => {
+                return move && typeof move.from === 'object' && typeof move.to === 'object' &&
+                       typeof move.from.row === 'number' && typeof move.from.col === 'number' &&
+                       typeof move.to.row === 'number' && typeof move.to.col === 'number';
+            };
+
+            const getPossibleMoves = (boardState, row, col, isForcedCaptureCheck = false) => {
+                const piece = boardState[row][col];
+                const moves = []; // For non-capture moves
+                const captures = []; // For capture moves
+
+                if (piece === EMPTY) return { moves, captures };
+
+                const isWhite = isPlayerPiece(piece, PLAYER_WHITE);
+                const isBlack = isPlayerPiece(piece, PLAYER_BLACK);
+                const isKingPiece = isKing(piece);
+
+                // Directions for regular pieces
+                const regularPieceDirections = [];
+                if (isWhite) {
+                    regularPieceDirections.push({ dr: -1, dc: -1 }, { dr: -1, dc: 1 }); // White moves up
+                } else if (isBlack) {
+                    regularPieceDirections.push({ dr: 1, dc: -1 }, { dr: 1, dc: 1 }); // Black moves down
+                }
+
+                // Directions for kings (all 4 diagonals)
+                const kingDirections = [
+                    { dr: -1, dc: -1 }, { dr: -1, dc: 1 },
+                    { dr: 1, dc: -1 }, { dr: 1, dc: 1 }
+                ];
+
+                const directionsToUse = isKingPiece ? kingDirections : regularPieceDirections;
+
+                for (const { dr, dc } of directionsToUse) {
+                    let currentR = row + dr;
+                    let currentC = col + dc;
+
+                    if (!isKingPiece) { // Logic for regular pieces
+                        // Regular move
+                        if (!isForcedCaptureCheck &&
+                            currentR >= 0 && currentR < BOARD_SIZE && currentC >= 0 && currentC < BOARD_SIZE &&
+                            boardState[currentR][currentC] === EMPTY) {
+                            moves.push({ from: { row, col }, to: { row: currentR, col: currentC } });
+                        }
+
+                        // Capture move
+                        const jumpedR = row + 2 * dr;
+                        const jumpedC = col + 2 * dc;
+
+                        if (currentR >= 0 && currentR < BOARD_SIZE && currentC >= 0 && currentC < BOARD_SIZE &&
+                            jumpedR >= 0 && jumpedR < BOARD_SIZE && jumpedC >= 0 && jumpedC < BOARD_SIZE) {
+                            const jumpedPiece = boardState[currentR][currentC];
+                            const landingSquare = boardState[jumpedR][jumpedC];
+
+                            if (jumpedPiece !== EMPTY && landingSquare === EMPTY &&
+                                ((isWhite && (jumpedPiece === BLACK_PIECE || jumpedPiece === BLACK_KING)) ||
+                                (isBlack && (jumpedPiece === WHITE_PIECE || jumpedPiece === WHITE_KING)))) {
+                                captures.push({ from: { row, col }, to: { row: jumpedR, col: jumpedC }, captured: { row: currentR, col: currentC } });
+                            }
+                        }
+                    } else { // Logic for King pieces (เดินได้ไม่จำกัดช่อง, กินได้หลายต่อ)
+                        let potentialCapturedPiece = null; // Stores the first opponent piece encountered in this direction
+
+                        while (currentR >= 0 && currentR < BOARD_SIZE && currentC >= 0 && currentC < BOARD_SIZE) {
+                            const squareContent = boardState[currentR][currentC];
+
+                            if (squareContent === EMPTY) {
+                                if (!potentialCapturedPiece) {
+                                    // King can move any number of empty squares if no piece has been encountered yet
+                                    if (!isForcedCaptureCheck) { // Only add non-capture moves if not checking for forced captures
+                                        moves.push({ from: { row, col }, to: { row: currentR, col: currentC } });
+                                    }
+                                } else {
+                                    // If an opponent's piece was found (potentialCapturedPiece), this empty square is a valid landing spot after capture
+                                    captures.push({ from: { row, col }, to: { row: currentR, col: currentC }, captured: potentialCapturedPiece });
+                                }
+                            } else if (isPlayerPiece(squareContent, isWhite ? PLAYER_WHITE : PLAYER_BLACK)) {
+                                // Blocked by own piece
+                                break;
+                            } else { // Opponent's piece
+                                if (potentialCapturedPiece) {
+                                    // Already found one opponent piece to capture in this direction, cannot capture another in the same "jump"
+                                    break;
+                                }
+                                // Found the first opponent piece, mark it as potential to capture
+                                potentialCapturedPiece = { row: currentR, col: currentC };
+                            }
+                            currentR += dr;
+                            currentC += dc;
+                        }
+                    }
+                }
+                return { moves, captures };
+            };
+
+            const getAllPossibleMovesForPlayer = (boardState, player) => {
+                let allMoves = [];
+                let allCaptures = [];
+
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        const piece = boardState[r][c];
+                        if (isPlayerPiece(piece, player)) {
+                            const { moves, captures } = getPossibleMoves(boardState, r, c);
+                            allMoves = allMoves.concat(moves);
+                            allCaptures = allCaptures.concat(captures);
+                        }
+                    }
+                }
+                return { allMoves, allCaptures };
+            };
+
+            const findForcedCaptures = (boardState, player) => {
+                const { allCaptures } = getAllPossibleMovesForPlayer(boardState, player);
+                if (allCaptures.length === 0) {
+                    return []; // No captures available
+                }
+
+                let longestCaptures = [];
+                let maxLen = 0;
+
+                // Iterate through all initial capture possibilities
+                for (const initialCapture of allCaptures) {
+                    // Defensive check for initialCapture structure
+                    if (!isValidMoveObject(initialCapture)) {
+                        console.warn("Skipping malformed initial capture:", initialCapture);
+                        continue; // Skip this malformed initial capture
+                    }
+
+                    // Recursive function to find all possible capture sequences
+                    const findSequences = (currentBoard, currentMove, currentSequence) => {
+                        // Defensive check for currentMove structure
+                        if (!isValidMoveObject(currentMove)) {
+                            console.warn("Skipping malformed current move in sequence:", currentMove);
+                            return; // Skip this branch
+                        }
+
+                        const nextBoard = applyMove(currentBoard, currentMove); // Apply the current jump
+                        const pieceAtNewPos = nextBoard[currentMove.to.row][currentMove.to.col];
+
+                        // If the piece is no longer there (e.g., due to an error in applyMove), stop this branch
+                        if (pieceAtNewPos === EMPTY || !isPlayerPiece(pieceAtNewPos, player)) {
+                            // This can happen if a capture was invalid or board state became inconsistent
+                            // In this case, this sequence branch ends here.
+                            if (currentSequence.length > maxLen) {
+                                maxLen = currentSequence.length;
+                                longestCaptures = [currentSequence];
+                            } else if (currentSequence.length === maxLen) {
+                                longestCaptures.push(currentSequence);
+                            }
+                            return;
+                        }
+
+                        const { captures: nextCaptures } = getPossibleMoves(nextBoard, currentMove.to.row, currentMove.to.col, true);
+
+                        let foundFurtherCapture = false;
+                        for (const nextCap of nextCaptures) {
+                            // Defensive check for nextCap structure
+                            if (!isValidMoveObject(nextCap)) {
+                                console.warn("Skipping malformed next capture in findSequences:", nextCap);
+                                continue; // Skip this capture
+                            }
+
+                            if (nextCap.from.row === currentMove.to.row && nextCap.from.col === currentMove.to.col) {
+                                foundFurtherCapture = true;
+                                findSequences(nextBoard, nextCap, [...currentSequence, nextCap]);
+                            }
+                        }
+
+                        if (!foundFurtherCapture) { // If no further captures from this sequence, it's a complete sequence
+                            if (currentSequence.length > maxLen) {
+                                maxLen = currentSequence.length;
+                                longestCaptures = [currentSequence]; // Start a new list of longest sequences
+                            } else if (currentSequence.length === maxLen) {
+                                longestCaptures.push(currentSequence); // Add to the list if same length
+                            }
+                        }
+                    };
+                    findSequences(boardState, initialCapture, [initialCapture]);
+                }
+                // Final filter to ensure all returned sequences are valid
+                return longestCaptures.filter(sequence => {
+                    if (!Array.isArray(sequence) || sequence.length === 0) return false;
+                    for (const move of sequence) {
+                        if (!isValidMoveObject(move)) {
+                            console.warn("Filtered out a malformed sequence at the end:", sequence);
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+            };
+
+
+            const applyMove = (currentBoard, move) => {
+                // Defensive check for move object structure
+                if (!isValidMoveObject(move)) {
+                    console.error("Invalid move object passed to applyMove:", move);
+                    // Return a deep copy of the original board to prevent unintended modifications
+                    return currentBoard.map(row => [...row]);
+                }
+
+                const newBoard = currentBoard.map(row => [...row]);
+                const piece = newBoard[move.from.row][move.from.col];
+
+                newBoard[move.to.row][move.to.col] = piece;
+                newBoard[move.from.row][move.from.col] = EMPTY;
+
+                if (move.captured && typeof move.captured.row !== 'undefined' && typeof move.captured.col !== 'undefined') {
+                    newBoard[move.captured.row][move.captured.col] = EMPTY;
+                }
+
+                // Promote to King
+                if (piece === WHITE_PIECE && move.to.row === 0) {
+                    newBoard[move.to.row][move.to.col] = WHITE_KING;
+                } else if (piece === BLACK_PIECE && move.to.row === BOARD_SIZE - 1) {
+                    newBoard[move.to.row][move.to.col] = BLACK_KING;
+                }
+
+                return newBoard;
+            };
+
+            const checkWinCondition = (boardState) => {
+                let whitePieces = 0;
+                let blackPieces = 0;
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        if (isPlayerPiece(boardState[r][c], PLAYER_WHITE)) {
+                            whitePieces++;
+                        } else if (isPlayerPiece(boardState[r][c], PLAYER_BLACK)) {
+                            blackPieces++;
+                        }
+                    }
+                }
+
+                if (whitePieces === 0) return PLAYER_BLACK; // Black wins
+                if (blackPieces === 0) return PLAYER_WHITE; // White wins
+
+                // Check if current player has any valid moves (including captures)
+                const { allMoves, allCaptures } = getAllPossibleMovesForPlayer(boardState, currentPlayer);
+                if (allMoves.length === 0 && allCaptures.length === 0) {
+                    return currentPlayer === PLAYER_WHITE ? PLAYER_BLACK : PLAYER_WHITE; // Current player has no moves, other player wins
+                }
+
+                return null; // No winner yet
+            };
+
+            // --- Draw by Repetition (หมากวนเวียน) ---
+            const checkDrawCondition = (currentBoard) => {
+                const currentBoardString = JSON.stringify(currentBoard);
+                let count = 0;
+                for (const historicalBoard of boardHistory) {
+                    if (historicalBoard === currentBoardString) {
+                        count++;
+                    }
+                }
+                // Rule: "มีการเดิน “หมากล้อเลียน” กันเกินกว่า 3 ครั้ง"
+                // This means if a position occurs for the 4th time, it's a draw.
+                // For simplicity, we'll use 3rd occurrence (count >= 2 as boardHistory includes initial state)
+                if (count >= 2) {
+                    return true;
+                }
+                return false;
+            };
+
+
+            // --- AI Logic (Minimax with Alpha-Beta Pruning) ---
+            // AI Engine Name: Pad Thai
+            const evaluateBoard = (boardState) => {
+                let score = 0;
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        const piece = boardState[r][c];
+                        if (piece === WHITE_PIECE) {
+                            score += 1;
+                            score += (BOARD_SIZE - 1 - r) * 0.1; // Positional advantage for white moving forward
+                        } else if (piece === WHITE_KING) {
+                            score += 5; // Kings are more valuable
+                        } else if (piece === BLACK_PIECE) {
+                            score -= 1;
+                            score -= r * 0.1; // Positional advantage for black moving forward
+                        } else if (piece === BLACK_KING) {
+                            score -= 5;
+                        }
+                    }
+                }
+                return score;
+            };
+
+            const minimax = (boardState, depth, alpha, beta, maximizingPlayer) => {
+                if (depth === 0 || gameOver) {
+                    return evaluateBoard(boardState);
+                }
+
+                const playerToMove = maximizingPlayer ? PLAYER_WHITE : PLAYER_BLACK;
+                const currentForcedCaptures = findForcedCaptures(boardState, playerToMove);
+                const { allMoves } = getAllPossibleMovesForPlayer(boardState, playerToMove);
+
+                let movesToConsider = currentForcedCaptures.length > 0 ? currentForcedCaptures : [allMoves];
+
+                if (movesToConsider.flat().length === 0) {
+                    return maximizingPlayer ? -Infinity : Infinity;
+                }
+
+                if (maximizingPlayer) {
+                    let maxEval = -Infinity;
+                    for (const sequenceOrMove of movesToConsider) {
+                        let currentBoardForEval = JSON.parse(JSON.stringify(boardState)); // Deep copy for this branch
+                        let movesInSequence = Array.isArray(sequenceOrMove[0]) ? sequenceOrMove : [sequenceOrMove];
+
+                        for (const move of movesInSequence) {
+                            if (!isValidMoveObject(move)) {
+                                console.error("Invalid move in minimax sequence (maximizing):", move);
+                                continue; // Skip this malformed move
+                            }
+                            currentBoardForEval = applyMove(currentBoardForEval, move);
+                        }
+
+                        const evalScore = minimax(currentBoardForEval, depth - 1, alpha, beta, false);
+                        maxEval = Math.max(maxEval, evalScore);
+                        alpha = Math.max(alpha, evalScore);
+                        if (beta <= alpha) {
+                            break;
+                        }
+                    }
+                    return maxEval;
+                } else {
+                    let minEval = Infinity;
+                    for (const sequenceOrMove of movesToConsider) {
+                        let currentBoardForEval = JSON.parse(JSON.stringify(boardState)); // Deep copy for this branch
+                        let movesInSequence = Array.isArray(sequenceOrMove[0]) ? sequenceOrMove : [sequenceOrMove];
+
+                        for (const move of movesInSequence) {
+                            if (!isValidMoveObject(move)) {
+                                console.error("Invalid move in minimax sequence (minimizing):", move);
+                                continue; // Skip this malformed move
+                            }
+                            currentBoardForEval = applyMove(currentBoardForEval, move);
+                        }
+
+                        const evalScore = minimax(currentBoardForEval, depth - 1, alpha, beta, true);
+                        minEval = Math.min(minEval, evalScore);
+                        beta = Math.min(beta, evalScore);
+                        if (beta <= alpha) {
+                            break;
+                        }
+                    }
+                    return minEval;
+                }
+            };
+
+            const findBestMove = (boardState, player) => {
+                let bestMove = null;
+                let bestValue = player === PLAYER_WHITE ? -Infinity : Infinity;
+                const depth = aiDepth; // Use chosen AI difficulty
+
+                const currentForcedCaptures = findForcedCaptures(boardState, player);
+                const { allMoves } = getAllPossibleMovesForPlayer(boardState, player);
+
+                let movesToConsider = currentForcedCaptures.length > 0 ? currentForcedCaptures : allMoves.map(m => [m]); // Ensure it's an array of sequences
+
+                if (movesToConsider.flat().length === 0) {
+                    return null;
+                }
+
+                // Shuffle moves to add some randomness to AI play at the same evaluation score
+                movesToConsider.sort(() => Math.random() - 0.5);
+
+                for (const sequenceOrMove of movesToConsider) {
+                    let currentSequence;
+                    if (Array.isArray(sequenceOrMove) && Array.isArray(sequenceOrMove[0])) { // It's a sequence of sequences (from findForcedCaptures)
+                        currentSequence = sequenceOrMove;
+                    } else if (Array.isArray(sequenceOrMove)) { // It's a simple move object wrapped in an array
+                        currentSequence = sequenceOrMove;
+                    } else { // It's a single move object (from allMoves.map(m => [m]))
+                        currentSequence = [sequenceOrMove];
+                    }
+
+                    // Defensive check for the first move in the sequence
+                    if (!currentSequence[0] || !isValidMoveObject(currentSequence[0])) {
+                        console.error("Invalid sequence/move in findBestMove iteration:", currentSequence);
+                        continue;
+                    }
+
+                    let currentBoardForEval = JSON.parse(JSON.stringify(boardState)); // Deep copy for simulation
+                    for (const move of currentSequence) {
+                        if (!isValidMoveObject(move)) {
+                            console.error("Invalid move within sequence in findBestMove:", move);
+                            currentBoardForEval = JSON.parse(JSON.stringify(boardState)); // Reset board to prevent cascading errors
+                            break; // Break from inner loop
+                        }
+                        currentBoardForEval = applyMove(currentBoardForEval, move);
+                    }
+
+                    const moveValue = minimax(currentBoardForEval, depth - 1, -Infinity, Infinity, player === PLAYER_BLACK);
+
+                    if (player === PLAYER_WHITE) {
+                        if (moveValue > bestValue) {
+                            bestValue = moveValue;
+                            bestMove = currentSequence[0]; // Store the first move of the best sequence
+                        }
+                    } else {
+                        if (moveValue < bestValue) {
+                            bestValue = moveValue;
+                            bestMove = currentSequence[0]; // Store the first move of the best sequence
+                        }
+                    }
+                }
+                return bestMove;
+            };
+
+            const handlePieceClick = (row, col) => {
+                if (gameOver) return;
+
+                // In 2-player mode, allow both players to interact
+                // In vs_ai mode, only allow PLAYER_WHITE (human) to interact
+                if (gameMode === 'vs_ai' && currentPlayer !== PLAYER_WHITE) {
+                    message = "รอ AI เดิน...";
+                    updateUI();
+                    return;
+                }
+                if (gameMode === '2_player' && !isPlayerPiece(board[row][col], currentPlayer) && selectedPiece === null) {
+                    message = "ไม่ใช่ตาเดินของคุณ หรือไม่ใช่หมากของคุณ";
+                    updateUI();
+                    return;
+                }
+
+
+                const piece = board[row][col];
+
+                // If the same piece is clicked again, deselect it
+                if (selectedPiece && selectedPiece.row === row && selectedPiece.col === col) {
+                    selectedPiece = null;
+                    possibleMoves = [];
+                    message = "";
+                    updateUI();
+                    return;
+                }
+
+                // If a player's own piece is clicked
+                if (isPlayerPiece(piece, currentPlayer)) {
+                    const { moves, captures } = getPossibleMoves(board, row, col);
+                    const currentForcedCaptures = findForcedCaptures(board, currentPlayer);
+
+                    if (currentForcedCaptures.length > 0) {
+                        // Filter forced captures to only those starting from the clicked piece
+                        const pieceForcedCaptures = currentForcedCaptures.filter(seq =>
+                            seq[0] && isValidMoveObject(seq[0]) && // Defensive check
+                            seq[0].from.row === row && seq[0].from.col === col
+                        );
+                        if (pieceForcedCaptures.length > 0) {
+                            selectedPiece = { row, col };
+                            const possibleJumpTos = new Set();
+                            pieceForcedCaptures.forEach(seq => {
+                                if (seq[0] && isValidMoveObject(seq[0])) { // Defensive check
+                                    possibleJumpTos.add(JSON.stringify(seq[0].to));
+                                }
+                            });
+                            possibleMoves = Array.from(possibleJumpTos).map(s => JSON.parse(s));
+                            forcedCaptures = pieceForcedCaptures; // Store the full sequences
+                            message = "คุณต้องกินหมากบังคับ!";
+                        } else {
+                            // If the clicked piece cannot make a forced capture, but other pieces can
+                            message = "คุณต้องกินหมากบังคับด้วยตัวอื่น!";
+                            selectedPiece = null;
+                            possibleMoves = [];
+                            forcedCaptures = currentForcedCaptures; // Keep track of all forced captures
+                        }
+                    } else {
+                        // No forced captures, show all regular moves and captures for the selected piece
+                        if (moves.length > 0 || captures.length > 0) {
+                            selectedPiece = { row, col };
+                            possibleMoves = moves.map(m => m.to).concat(captures.map(m => m.to));
+                            forcedCaptures = [];
+                            message = "";
+                        } else {
+                            message = "หมากที่เลือกไม่มีตาเดินที่ถูกต้อง";
+                            selectedPiece = null;
+                            possibleMoves = [];
+                        }
+                    }
+                    updateUI();
+                } else if (selectedPiece) { // If a piece is already selected, this click is an attempted move
+                    // Defensive check: Ensure selectedPiece is valid before proceeding
+                    if (!selectedPiece || typeof selectedPiece.row === 'undefined' || typeof selectedPiece.col === 'undefined') {
+                        console.error("Critical Error: selectedPiece is invalid:", selectedPiece);
+                        selectedPiece = null; // Reset to a safe state
+                        possibleMoves = [];
+                        message = "เกิดข้อผิดพลาดภายใน: โปรดลองอีกครั้ง";
+                        updateUI();
+                        return;
+                    }
+
+                    const targetMove = possibleMoves.find(
+                        (move) => move.row === row && move.col === col
+                    );
+
+                    if (targetMove) {
+                        let moveMade = false;
+                        let nextBoard = JSON.parse(JSON.stringify(board)); // Deep copy to ensure immutability for nextBoard
+                        let nextPlayer = currentPlayer;
+                        let nextMessage = message;
+                        let nextGameOver = false;
+                        let currentLastMove = null;
+
+                        if (forcedCaptures.length > 0) {
+                            // Find the specific sequence that starts with the selected piece and target move
+                            const sequenceToExecute = forcedCaptures.find(seq =>
+                                seq[0] && isValidMoveObject(seq[0]) && // Defensive check
+                                seq[0].from.row === selectedPiece.row &&
+                                seq[0].from.col === selectedPiece.col &&
+                                seq[0].to.row === targetMove.row &&
+                                seq[0].to.col === targetMove.col
+                            );
+
+                            if (sequenceToExecute) {
+                                const firstMove = sequenceToExecute[0];
+                                nextBoard = applyMove(board, firstMove); // Use original board for first applyMove
+                                currentLastMove = firstMove; // Set last move for highlighting
+                                moveMade = true;
+
+                                // Check for further captures from the new position after the first jump
+                                const { captures: subsequentCaptures } = getPossibleMoves(nextBoard, firstMove.to.row, firstMove.to.col, true);
+                                const remainingSequence = sequenceToExecute.slice(1);
+
+                                // Check if there are actual subsequent captures for the *current* piece
+                                const canContinueJump = subsequentCaptures.some(cap =>
+                                    cap.from.row === firstMove.to.row && cap.from.col === firstMove.to.col
+                                );
+
+                                if (remainingSequence.length > 0 && canContinueJump) {
+                                    selectedPiece = { row: firstMove.to.row, col: firstMove.to.col };
+                                    const nextPossibleJumpTos = new Set();
+                                    // Only add moves that are part of the *remaining* sequence
+                                    remainingSequence.forEach(remMove => {
+                                        if (remMove && isValidMoveObject(remMove)) { // Defensive check
+                                            nextPossibleJumpTos.add(JSON.stringify(remMove.to));
+                                        }
+                                    });
+                                    possibleMoves = Array.from(nextPossibleJumpTos).map(s => JSON.parse(s));
+                                    forcedCaptures = [remainingSequence]; // Only consider the remaining part
+                                    message = "กินต่อ!";
+                                    board = nextBoard; // Update board locally
+                                    lastMove = currentLastMove; // Update last move
+                                    updateUI();
+                                    return; // Don't switch player yet, continue capture
+                                }
+                            }
+                        } else {
+                            // Regular move (no forced captures)
+                            const move = { from: selectedPiece, to: targetMove };
+                            nextBoard = applyMove(board, move);
+                            currentLastMove = move; // Set last move for highlighting
+                            moveMade = true;
+                        }
+
+                        if (moveMade) {
+                            const winner = checkWinCondition(nextBoard);
+                            if (winner) {
+                                nextGameOver = true;
+                                nextMessage = `${winner === PLAYER_WHITE ? 'ขาว' : 'ดำ'} ชนะ!`;
+                            } else {
+                                // Check for draw by repetition *after* applying the move and before switching player
+                                boardHistory.push(JSON.stringify(nextBoard));
+                                if (checkDrawCondition(nextBoard)) {
+                                    nextGameOver = true;
+                                    nextMessage = "เสมอ! (หมากวนเวียน)";
+                                } else {
+                                    nextPlayer = currentPlayer === PLAYER_WHITE ? PLAYER_BLACK : PLAYER_WHITE;
+                                    nextMessage = `${nextPlayer === PLAYER_WHITE ? 'ขาว' : 'ดำ'} เดิน`;
+                                }
+                            }
+
+                            board = nextBoard;
+                            currentPlayer = nextPlayer;
+                            gameOver = nextGameOver;
+                            message = nextMessage;
+                            selectedPiece = null;
+                            possibleMoves = [];
+                            forcedCaptures = [];
+                            lastMove = currentLastMove; // Update last move
+                            updateUI();
+
+                            if (!gameOver && currentPlayer === PLAYER_BLACK && gameMode === 'vs_ai') { // If it's AI's turn in vs_ai mode
+                                setTimeout(handleAITurn, 500); // Give a slight delay for AI turn
+                            }
+                        }
+                    } else { // Clicked on an invalid square
+                        message = "เดินไม่ได้";
+                        updateUI();
+                    }
+                } else { // Clicked on an empty square when no piece is selected
+                    message = "เลือกหมากของคุณ";
+                    updateUI();
+                }
+            };
+
+            const handleAITurn = () => {
+                message = "AI กำลังคิด...";
+                updateUI();
+
+                // Use setTimeout to allow UI to update before AI calculation blocks
+                setTimeout(() => {
+                    const bestMove = findBestMove(board, PLAYER_BLACK);
+
+                    if (bestMove) {
+                        let nextBoard = JSON.parse(JSON.stringify(board));
+                        let currentLastMove = null;
+
+                        // If the bestMove is part of a forced capture sequence, find and apply the full sequence
+                        const allBlackCaptures = findForcedCaptures(board, PLAYER_BLACK);
+                        const sequenceToExecute = allBlackCaptures.find(seq =>
+                            seq[0] && isValidMoveObject(seq[0]) && // Defensive check
+                            seq[0].from.row === bestMove.from.row &&
+                            seq[0].from.col === bestMove.from.col &&
+                            seq[0].to.row === bestMove.to.row &&
+                            seq[0].to.col === bestMove.to.col
+                        );
+
+                        if (sequenceToExecute) {
+                            for (const move of sequenceToExecute) {
+                                if (!isValidMoveObject(move)) {
+                                    console.error("Invalid move in AI sequence execution:", move);
+                                    break; // Stop executing this sequence if a malformed move is found
+                                }
+                                nextBoard = applyMove(nextBoard, move);
+                            }
+                            currentLastMove = sequenceToExecute[sequenceToExecute.length - 1]; // Last move in the sequence
+                        } else {
+                            // It's a regular move
+                            nextBoard = applyMove(board, bestMove);
+                            currentLastMove = bestMove;
+                        }
+
+                        board = nextBoard;
+                        lastMove = currentLastMove; // Update last move for highlighting
+
+                        const winner = checkWinCondition(board);
+                        if (winner) {
+                            gameOver = true;
+                            message = `${winner === PLAYER_WHITE ? 'ขาว' : 'ดำ'} ชนะ!`;
+                        } else {
+                            boardHistory.push(JSON.stringify(board));
+                            if (checkDrawCondition(board)) {
+                                gameOver = true;
+                                message = "เสมอ! (หมากวนเวียน)";
+                            } else {
+                                currentPlayer = PLAYER_WHITE;
+                                message = "ขาวเดิน";
+                            }
+                        }
+                        updateUI();
+                    } else {
+                        // AI has no moves, human player wins
+                        gameOver = true;
+                        message = "ดำไม่มีตาเดิน! ขาวชนะ!";
+                        updateUI();
+                    }
+                }, 700); // AI thinks for a bit (0.7 seconds)
+            };
+
+
+            // --- Game Initialization and Event Listeners ---
+
+            const startGame = (mode) => {
+                gameMode = mode;
+                board = initializeBoard();
+                currentPlayer = PLAYER_WHITE;
+                selectedPiece = null;
+                possibleMoves = [];
+                message = `${currentPlayer === PLAYER_WHITE ? 'ขาว' : 'ดำ'} เดิน`;
+                gameOver = false;
+                forcedCaptures = [];
+                lastMove = null;
+                boardHistory = [JSON.stringify(board)]; // Initialize history with the starting board
+                updateUI();
+            };
+
+            const resetGame = () => {
+                startGame(gameMode); // Restart with the current game mode
+            };
+
+            const backToModeSelection = () => {
+                gameMode = null;
+                updateUI();
+            };
+
+            // Event Listeners
+            modeVsAiBtn.addEventListener('click', () => {
+                startGame('vs_ai');
+            });
+
+            mode2PlayerBtn.addEventListener('click', () => {
+                startGame('2_player');
+            });
+
+            difficultyBtns.forEach(button => {
+                button.addEventListener('click', () => {
+                    aiDepth = parseInt(button.dataset.difficulty);
+                    // Highlight selected difficulty button
+                    difficultyBtns.forEach(btn => btn.classList.remove('ring-2', 'ring-offset-2', 'ring-current'));
+                    button.classList.add('ring-2', 'ring-offset-2', 'ring-current');
+                    message = `ระดับความยาก AI: ${button.textContent}`;
+                    updateUI();
+                });
+            });
+
+            resetGameBtn.addEventListener('click', resetGame);
+            backToModeSelectionBtn.addEventListener('click', backToModeSelection);
+
+            // Initial UI render on page load
+            document.addEventListener('DOMContentLoaded', () => {
+                updateUI(); // Render initial mode selection screen
+                // Set initial difficulty button highlight (e.g., Medium)
+                document.querySelector(`[data-difficulty="${aiDepth}"]`).classList.add('ring-2', 'ring-offset-2', 'ring-current');
+            });
+        </script>
+    </body>
+    </html>
+    ```
+
